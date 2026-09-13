@@ -1,0 +1,8 @@
+CREATE TABLE users (
+  id UUID PRIMARY KEY,
+  username VARCHAR(50) UNIQUE NOT NULL,
+  elo INTEGER NOT NULL,
+  pass_hash VARCHAR(255) NOT NULL,
+  email VARCHAR(255) UNIQUE NOT NULL,
+  created_at DATE NOT NULL
+)

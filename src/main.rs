@@ -1,4 +1,7 @@
 mod models;
+mod repository;
+mod routes;
+mod service;
 
 use axum::{
     Router,
