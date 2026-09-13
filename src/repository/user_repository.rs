@@ -33,13 +33,11 @@ impl UserRepository {
     pub async fn create(
         &self,
         username: String,
-        elo: i32,
         email: String,
         pass_hash: String,
     ) -> Result<User, sqlx::Error> {
-        let user = sqlx::query_as::<_, User>("INSER INTO users (username, elo, email, pass_hash, created_at) VALUES ($1, $2, $3, $4, $5) RETURNING id, username, elo, email, pass_hash, created_at")
+        let user = sqlx::query_as::<_, User>("INSER INTO users (username, email, pass_hash, created_at) VALUES ($1, $2, $3, $4, $5) RETURNING id, username, email, pass_hash, created_at")
             .bind(username)
-            .bind(elo)
             .bind(email)
             .bind(pass_hash)
             .bind(Utc::now())

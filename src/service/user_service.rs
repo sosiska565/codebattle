@@ -19,7 +19,7 @@ impl UserService {
     pub async fn create(&self, user: User) -> impl IntoResponse {
         let user = self
             .repo
-            .create(user.username, user.elo, user.email, user.pass_hash)
+            .create(user.username, user.email, user.pass_hash)
             .await;
 
         match user {
