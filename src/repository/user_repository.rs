@@ -11,6 +11,13 @@ impl UserRepository {
     pub fn new(pool: PgPool) -> Self {
         Self { pool }
     }
+    pub async fn get_all(&self) -> Result<Vec<User>, sqlx::Error> {
+        let users = sqlx::query_as::<_, User>("SELECT id, username, elo, email FROM users")
+            .fetch_all(&self.pool)
+            .await?;
+
+        Ok(users)
+    }
     pub async fn get_by_id(&self, id: Uuid) -> Result<Option<User>, sqlx::Error> {
         let user =
             sqlx::query_as::<_, User>("SELECT id, username, elo, email FROM users WHERE id = $1")
@@ -36,7 +43,7 @@ impl UserRepository {
         email: String,
         pass_hash: String,
     ) -> Result<User, sqlx::Error> {
-        let user = sqlx::query_as::<_, User>("INSER INTO users (username, email, pass_hash, created_at) VALUES ($1, $2, $3, $4, $5) RETURNING id, username, email, pass_hash, created_at")
+        let user = sqlx::query_as::<_, User>("INSERT INTO users (username, email, pass_hash, created_at) VALUES ($1, $2, $3, $4) RETURNING id, username, email, pass_hash, created_at")
             .bind(username)
             .bind(email)
             .bind(pass_hash)

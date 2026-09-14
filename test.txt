@@ -1,0 +1,138 @@
+    Checking codebattle v0.1.0 (/home/egor/rust/codebattle)
+error[E0425]: cannot find value `update_user` in this scope
+  --> src/routes/routes.rs:22:25
+   |
+22 |                   .update(update_user)
+   |                           ^^^^^^^^^^^
+...
+32 | / async fn create_user(
+33 | |     State(state): State<Arc<AppState>>,
+34 | |     Json(user): Json<User>,
+35 | | ) -> impl IntoResponse {
+36 | |     state.user_service.create
+37 | | }
+   | |_- similarly named function `create_user` defined here
+   |
+help: a function with a similar name exists
+   |
+22 -                 .update(update_user)
+22 +                 .update(create_user)
+   |
+
+error[E0425]: cannot find value `delete_user` in this scope
+  --> src/routes/routes.rs:23:25
+   |
+23 |                 .delete(delete_user),
+   |                         ^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find value `app` in this scope
+  --> src/main.rs:20:35
+   |
+20 |     let _ = axum::serve(listener, app).await;
+   |                                   ^^^ not found in this scope
+
+warning: unused import: `std::os::linux::raw::stat`
+ --> src/service/user_service.rs:1:5
+  |
+1 | use std::os::linux::raw::stat;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `self`
+ --> src/service/user_service.rs:3:27
+  |
+3 | use crate::models::user::{self, User};
+  |                           ^^^^
+
+warning: unused imports: `Html`, `IntoResponse`, `Router`, `http::StatusCode`, and `routing::get`
+  --> src/main.rs:7:5
+   |
+ 7 |     Router,
+   |     ^^^^^^
+ 8 |     http::StatusCode,
+   |     ^^^^^^^^^^^^^^^^
+ 9 |     response::{Html, IntoResponse},
+   |                ^^^^  ^^^^^^^^^^^^
+10 |     routing::get,
+   |     ^^^^^^^^^^^^
+
+warning: use of deprecated struct `std::os::linux::raw::stat`: these type aliases are no longer supported by the standard library, the `libc` crate on crates.io should be used instead for the correct definitions
+ --> src/service/user_service.rs:1:26
+  |
+1 | use std::os::linux::raw::stat;
+  |                          ^^^^
+  |
+  = note: `#[warn(deprecated)]` on by default
+
+error[E0597]: `state` does not live long enough
+  --> src/routes/routes.rs:29:18
+   |
+28 | async fn get_all_users(State(state): State<Arc<AppState>>) -> impl IntoResponse {
+   |                              ----- binding `state` declared here
+29 |     async move { state.user_service.get_all().await }.await
+   |              -   ^^^^^-----------------------       - `state` dropped here while still borrowed
+   |              |   |
+   |              |   borrowed value does not live long enough
+   |              |   argument requires that `state` is borrowed for `'1`
+   |              return type of async block `impl IntoResponse` contains a lifetime `'1`
+   |
+note: this call may capture more lifetimes than intended, because Rust 2024 has adjusted the `impl Trait` lifetime capture rules
+  --> src/routes/routes.rs:29:18
+   |
+29 |     async move { state.user_service.get_all().await }.await
+   |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+help: use the precise capturing `use<...>` syntax to make the captures explicit
+  --> src/service/user_service.rs:19:53
+   |
+19 |     pub async fn get_all(&self) -> impl IntoResponse + use<> {
+   |                                                      +++++++
+
+error[E0615]: attempted to take value of method `create` on type `UserService`
+  --> src/routes/routes.rs:36:24
+   |
+36 |     state.user_service.create
+   |                        ^^^^^^ method, not a field
+   |
+help: use parentheses to call the method
+   |
+36 |     state.user_service.create(_)
+   |                              +++
+
+error[E0597]: `state` does not live long enough
+  --> src/routes/routes.rs:43:5
+   |
+40 |     State(state): State<Arc<AppState>>,
+   |           ----- binding `state` declared here
+41 |     Path(id): Path<Uuid>,
+42 | ) -> impl IntoResponse {
+   |      ----------------- return type of async function `impl IntoResponse` contains a lifetime `'1`
+43 |     state.user_service.get_by_id(id).await
+   |     ^^^^^---------------------------
+   |     |
+   |     borrowed value does not live long enough
+   |     argument requires that `state` is borrowed for `'1`
+44 | }
+   | - `state` dropped here while still borrowed
+   |
+note: this call may capture more lifetimes than intended, because Rust 2024 has adjusted the `impl Trait` lifetime capture rules
+  --> src/routes/routes.rs:43:5
+   |
+43 |     state.user_service.get_by_id(id).await
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+help: use the precise capturing `use<...>` syntax to make the captures explicit
+  --> src/service/user_service.rs:42:65
+   |
+42 |     pub async fn get_by_id(&self, id: Uuid) -> impl IntoResponse + use<> {
+   |                                                                  +++++++
+
+error[E0425]: cannot find function `get` in this scope
+  --> src/routes/routes.rs:20:13
+   |
+20 |             get(get_all_users)
+   |             ^^^ not found in this scope
+
+Some errors have detailed explanations: E0425, E0597, E0615.
+For more information about an error, try `rustc --explain E0425`.
+warning: `codebattle` (bin "codebattle") generated 4 warnings
+error: could not compile `codebattle` (bin "codebattle") due to 7 previous errors; 4 warnings emitted
