@@ -1,116 +1,90 @@
-use crate::models::user::{User, UserCreateDto};
-use crate::repository::user_repository;
-use axum::Json;
-use axum::http::StatusCode;
-use axum::response::{IntoResponse, Response};
+use crate::models::users::User;
+use crate::models::dto::user_dto::{UserCreateRequest, UserUpdateRequest};
+use crate::repository::user_repository::UserRepository;
+use crate::error::AppError;
 use bcrypt::{DEFAULT_COST, hash};
-use serde_json::json;
 use uuid::Uuid;
+use chrono::Utc;
+use std::sync::Arc;
 
-pub struct UserService {
-    repo: user_repository::UserRepository,
+pub struct UserService<R: UserRepository> {
+    repo: Arc<R>,
 }
 
-impl UserService {
-    pub fn new(repo: user_repository::UserRepository) -> Self {
-        Self { repo }
+impl<R: UserRepository> UserService<R> {
+    pub fn new(repo: Arc<R>) -> Self {
+        Self { 
+            repo 
+        }
     }
-    pub async fn get_all(&self) -> Response {
-        match self.repo.get_all().await {
-            Ok(usrs) => return (StatusCode::OK, Json(usrs)).into_response(),
-            Err(e) => {
-                eprintln!("{}", e);
-                return (StatusCode::BAD_GATEWAY).into_response();
-            }
-        };
+
+    pub async fn get_all(&self) -> Result<Vec<User>, AppError> {
+        Ok(self.repo.find_all().await?)
     }
-    pub async fn create(&self, user_create_dto: UserCreateDto) -> Response {
-        match self
-            .repo
-            .exists_by_username(&user_create_dto.username)
-            .await
-        {
-            Ok(true) => return (StatusCode::CONFLICT).into_response(),
-            Ok(false) => {}
-            Err(e) => {
-                eprintln!("{}", e);
-                return (StatusCode::BAD_GATEWAY).into_response();
-            }
-        };
 
-        match self.repo.exists_by_email(&user_create_dto.email).await {
-            Ok(true) => return (StatusCode::CONFLICT).into_response(),
-            Ok(false) => {}
-            Err(e) => {
-                eprintln!("{}", e);
-                return (StatusCode::BAD_GATEWAY).into_response();
-            }
-        };
+    pub async fn get_by_id(&self, id: Uuid) -> Result<User, AppError> {
+        self.repo.find_by_id(&id).await?.ok_or(AppError::NotFound)
+    }
 
+    pub async fn get_by_email(&self, email: String) -> Result<User, AppError> {
+        self.repo.find_by_email(&email).await?.ok_or(AppError::NotFound)
+    }
+
+    pub async fn create(&self, dto: UserCreateRequest) -> Result<User, AppError> {
+        if self.repo.exists_by_username(&dto.username).await? {
+            return Err(AppError::Conflict("username already taken".into()));
+        }
+        if self.repo.exists_by_email(&dto.email).await? {
+            return Err(AppError::Conflict("email already registered".into()));
+        }
+
+        let password = dto.password;
         let pass_hash =
-            tokio::task::spawn_blocking(move || hash(user_create_dto.raw_password, DEFAULT_COST))
+            tokio::task::spawn_blocking(move || hash(password, DEFAULT_COST))
                 .await
-                .unwrap()
-                .unwrap();
+                .map_err(|e| AppError::Internal(e.into()))?
+                .map_err(AppError::Hash)?;
 
-        let user = self
-            .repo
-            .create(
-                &user_create_dto.username,
-                &user_create_dto.email,
-                &pass_hash,
-                1000,
-            )
-            .await;
+        let user = User {
+            id: Uuid::new_v4(),
+            username: dto.username,
+            email: dto.email,
+            pass_hash: pass_hash,
+            elo: 1000,
+            created_at: Utc::now(),
+        };
 
-        match user {
-            Ok(usr) => return (StatusCode::CREATED, Json(usr)).into_response(),
-            Err(e) => {
-                eprintln!("Create user service error: {}", e);
-                return (StatusCode::BAD_GATEWAY).into_response();
-            }
-        };
+        self.repo.create(&user).await.map_err(AppError::from)
     }
-    pub async fn get_by_id(&self, id: Uuid) -> Response {
-        let user = self.repo.get_by_id(&id).await;
 
-        match user {
-            Ok(Some(usr)) => return (StatusCode::OK, Json(json!(usr))).into_response(),
-            Ok(None) => return (StatusCode::NOT_FOUND).into_response(),
-            Err(e) => {
-                eprintln!("{}", e);
-                return (StatusCode::BAD_GATEWAY).into_response();
-            }
-        };
-    }
-    pub async fn get_by_username(&self, username: String) -> Response {
-        let user = self.repo.get_by_username(&username).await;
+    pub async fn update(&self, id: Uuid, dto: UserUpdateRequest) -> Result<User, AppError> {
+        let mut user = self.repo.find_by_id(&id).await?.ok_or(AppError::NotFound)?;
 
-        match user {
-            Ok(Some(usr)) => return (StatusCode::OK, Json(json!(usr))).into_response(),
-            Ok(None) => return (StatusCode::NOT_FOUND).into_response(),
-            Err(e) => {
-                eprintln!("{}", e);
-                return (StatusCode::BAD_GATEWAY).into_response();
+        if let Some(new_email) = &dto.email {
+            if new_email != &user.email && self.repo.exists_by_email(new_email).await? {
+                return Err(AppError::Conflict("email already in use".into()));
             }
-        };
+        }
+        
+        if let Some(new_username) = &dto.username {
+            if new_username != &user.username && self.repo.exists_by_username(new_username).await? {
+                return Err(AppError::Conflict("username already taken".into()));
+            }
+        }
+
+        if let Some(new_email) = dto.email {
+            user.email = new_email
+        }
+
+        if let Some(new_username) = dto.username {
+            user.username = new_username
+        }
+
+        self.repo.update(&user).await.map_err(AppError::from)
     }
-    pub async fn delete_by_id(&self, id: Uuid) -> Response {
-        match self.repo.delete_by_id(&id).await {
-            Ok(()) => return (StatusCode::OK).into_response(),
-            Err(e) => {
-                eprintln!("{}", e);
-                return (StatusCode::BAD_GATEWAY).into_response();
-            }
-        };
-    }
-    pub async fn update(&self, user: User) -> Response {
-        match self.repo.update(&user).await {
-            Ok(usr) => return (StatusCode::OK, Json(json!(usr))).into_response(),
-            Err(e) => {
-                eprintln!("{}", e);
-                return (StatusCode::BAD_GATEWAY).into_response();
-            }
-        };
+
+    pub async fn delete_by_id(&self, id: Uuid) -> Result<(), AppError> {
+        self.repo.find_by_id(&id).await?.ok_or(AppError::NotFound)?;
+        self.repo.delete_by_id(&id).await.map_err(AppError::from)
     }
 }

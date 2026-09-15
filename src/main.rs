@@ -2,17 +2,11 @@ mod models;
 mod repository;
 mod routes;
 mod service;
+mod error;
 use dotenvy::from_path;
 
-use std::{path::PathBuf, sync::Arc};
-
-use axum::{
-    Router,
-    http::StatusCode,
-    response::{Html, IntoResponse},
-    routing::get,
-};
 use sqlx::PgPool;
+use std::{path::PathBuf, sync::Arc};
 
 #[tokio::main]
 async fn main() {
@@ -23,13 +17,19 @@ async fn main() {
     from_path(env_path).expect("Failed to load config/.env file");
     let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
 
-    let app_state = routes::routes::AppState {
-        user_service: service::user_service::UserService::new(
-            repository::user_repository::UserRepository::new(
-                PgPool::connect(&database_url).await.unwrap(),
-            ),
-        ),
-    };
+    let pool = PgPool::connect(&database_url)
+        .await
+        .expect("failed to connect to Postgres");
+
+    sqlx::migrate!("./migrations")
+        .run(&pool)
+        .await
+        .expect("failed to run migrations");
+
+    let repo = Arc::new(repository::user_repository::PgUserRepository::new(pool));
+    let user_service = service::user_service::UserService::new(repo);
+
+    let app_state = routes::routes::AppState { user_service };
     let routes = routes::routes::create_route(Arc::new(app_state));
 
     let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
