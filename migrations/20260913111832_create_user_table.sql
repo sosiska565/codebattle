@@ -4,5 +4,5 @@ CREATE TABLE users (
   elo INTEGER NOT NULL,
   pass_hash VARCHAR(255) NOT NULL,
   email VARCHAR(255) UNIQUE NOT NULL,
-  created_at DATE NOT NULL
+  created_at TIMESTAMPTZ NOT NULL
 )

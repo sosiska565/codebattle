@@ -1,8 +1,8 @@
+mod error;
 mod models;
 mod repository;
 mod routes;
 mod service;
-mod error;
 use dotenvy::from_path;
 
 use sqlx::PgPool;
@@ -13,6 +13,8 @@ async fn main() {
     let mut env_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     env_path.push("codebattle-private");
     env_path.push(".env");
+
+    tracing_subscriber::fmt::init();
 
     from_path(env_path).expect("Failed to load config/.env file");
     let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");

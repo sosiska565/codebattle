@@ -6,9 +6,9 @@ use sqlx::PgPool;
 pub trait UserRepository: Send + Sync {
     async fn find_all(&self) -> Result<Vec<User>, sqlx::Error>;
     async fn find_by_id(&self, id: &uuid::Uuid) -> Result<Option<User>, sqlx::Error>;
-    async fn find_by_email(&self, email: &String) -> Result<Option<User>, sqlx::Error>;
-    async fn exists_by_username(&self, email: &String) -> Result<bool, sqlx::Error>;
-    async fn exists_by_email(&self, email: &String) -> Result<bool, sqlx::Error>;
+    async fn find_by_email(&self, email: &str) -> Result<Option<User>, sqlx::Error>;
+    async fn exists_by_username(&self, email: &str) -> Result<bool, sqlx::Error>;
+    async fn exists_by_email(&self, email: &str) -> Result<bool, sqlx::Error>;
     async fn create(&self, user: &User) -> Result<User, sqlx::Error>;
     async fn update(&self, user: &User) -> Result<User, sqlx::Error>;
     async fn delete_by_id(&self, id: &uuid::Uuid) -> Result<(), sqlx::Error>;
@@ -41,14 +41,14 @@ impl UserRepository for PgUserRepository {
             .await
     }
 
-    async fn find_by_email(&self, email: &String) -> Result<Option<User>, sqlx::Error> {
+    async fn find_by_email(&self, email: &str) -> Result<Option<User>, sqlx::Error> {
         sqlx::query_as::<_, User>("SELECT * FROM users WHERE email = $1")
             .bind(email)
             .fetch_optional(&self.pool)
             .await
     }
 
-    async fn exists_by_username(&self, username: &String) -> Result<bool, sqlx::Error> {
+    async fn exists_by_username(&self, username: &str) -> Result<bool, sqlx::Error> {
         let exists: bool =
             sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM users WHERE username = $1)")
                 .bind(username)
@@ -58,7 +58,7 @@ impl UserRepository for PgUserRepository {
         Ok(exists)
     }
 
-    async fn exists_by_email(&self, email: &String) -> Result<bool, sqlx::Error> {
+    async fn exists_by_email(&self, email: &str) -> Result<bool, sqlx::Error> {
         let exists: bool =
             sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM users WHERE email = $1)")
                 .bind(email)
