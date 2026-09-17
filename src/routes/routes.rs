@@ -1,11 +1,15 @@
 use std::sync::Arc;
 
 use crate::error::AppError;
-use crate::models::dto::user_dto::{UserCreateRequest, UserResponse, UserUpdateRequest};
+use crate::models::dto::user_dto::{
+    UserCreateRequest, UserLoginRequest, UserResponse, UserUpdateRequest,
+};
 use crate::models::users::User;
 use crate::repository::user_repository::UserRepository;
+use crate::service::auth_service::AuthService;
 use crate::service::user_service::UserService;
 use axum::http::StatusCode;
+use axum::routing::post;
 use axum::{
     Json, Router,
     extract::{Path, State},
@@ -17,6 +21,7 @@ use validator::Validate;
 
 pub struct AppState<R: UserRepository> {
     pub user_service: UserService<R>,
+    pub auth_service: AuthService<R>,
 }
 
 pub fn create_route<R: UserRepository + 'static>(state: Arc<AppState<R>>) -> Router {
@@ -28,7 +33,19 @@ pub fn create_route<R: UserRepository + 'static>(state: Arc<AppState<R>>) -> Rou
                 .patch(update_user)
                 .delete(delete_user_by_id),
         )
+        .route("/auth/login", post(login))
         .with_state(state)
+}
+
+async fn login<R: UserRepository + 'static>(
+    State(state): State<Arc<AppState<R>>>,
+    Json(dto): Json<UserLoginRequest>,
+) -> Result<impl IntoResponse, AppError> {
+    dto.validate()
+        .map_err(|e| AppError::Validation(e.to_string()))?;
+
+    let token = state.auth_service.login(dto).await?;
+    Ok(Json(token))
 }
 
 async fn get_all_users<R: UserRepository>(

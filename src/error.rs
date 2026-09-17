@@ -19,6 +19,10 @@ pub enum AppError {
     Internal(#[from] anyhow::Error),
     #[error("validation error")]
     Validation(String),
+    #[error("unauthorized error")]
+    Unauthorized(String),
+    #[error("jwt error")]
+    Jwt(#[from] jsonwebtoken::errors::Error),
 }
 
 impl IntoResponse for AppError {
@@ -33,9 +37,13 @@ impl IntoResponse for AppError {
                 "internal server error".to_string(),
             ),
             AppError::Validation(str) => (StatusCode::BAD_REQUEST, str),
+            AppError::Unauthorized(str) => (StatusCode::UNAUTHORIZED, str),
+            AppError::Jwt(_) => (
+                StatusCode::UNAUTHORIZED,
+                "invalid or expired token".to_string(),
+            ),
         };
 
         (status, Json(json!({ "error": message }))).into_response()
     }
 }
-
