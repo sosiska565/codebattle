@@ -42,6 +42,8 @@ async fn create_user<R: UserRepository + 'static>(
     State(state): State<Arc<AppState<R>>>,
     Json(dto): Json<UserCreateRequest>,
 ) -> Result<impl IntoResponse, AppError> {
+    dto.validate()
+        .map_err(|e| AppError::Validation(e.to_string()))?;
     let user = state.user_service.create(dto).await?;
     Ok((StatusCode::CREATED, Json(UserResponse::from(user))))
 }
