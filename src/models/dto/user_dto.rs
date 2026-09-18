@@ -22,6 +22,14 @@ pub struct UserUpdateRequest {
     pub email: Option<String>,
 }
 
+#[derive(Debug, Serialize, Deserialize, Validate)]
+pub struct UserLoginRequest {
+    #[validate(email)]
+    pub email: String,
+    #[validate(length(min = 8, max = 50))]
+    pub password: String,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct UserResponse {
     pub id: Uuid,
@@ -38,4 +46,3 @@ impl From<User> for UserResponse {
         }
     }
 }
-

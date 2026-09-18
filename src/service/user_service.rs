@@ -1,4 +1,5 @@
 use crate::error::AppError;
+use crate::models::dto::auth_dto::TokenResponse;
 use crate::models::dto::user_dto::{UserCreateRequest, UserUpdateRequest};
 use crate::models::users::User;
 use crate::repository::user_repository::UserRepository;
