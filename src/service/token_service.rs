@@ -5,9 +5,10 @@ use uuid::Uuid;
 
 use crate::error::AppError;
 
+#[derive(Clone)]
 pub struct TokenService {
     jwt_secret: String,
-    ttl_seconds: i64,
+    pub ttl_seconds: i64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

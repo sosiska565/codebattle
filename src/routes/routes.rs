@@ -1,12 +1,14 @@
 use std::sync::Arc;
 
 use crate::error::AppError;
+use crate::models::dto::auth_dto::TokenResponse;
 use crate::models::dto::user_dto::{
     UserCreateRequest, UserLoginRequest, UserResponse, UserUpdateRequest,
 };
 use crate::models::users::User;
 use crate::repository::user_repository::UserRepository;
 use crate::service::auth_service::AuthService;
+use crate::service::token_service::TokenService;
 use crate::service::user_service::UserService;
 use axum::http::StatusCode;
 use axum::routing::post;
@@ -22,6 +24,7 @@ use validator::Validate;
 pub struct AppState<R: UserRepository> {
     pub user_service: UserService<R>,
     pub auth_service: AuthService<R>,
+    pub token_service: TokenService,
 }
 
 pub fn create_route<R: UserRepository + 'static>(state: Arc<AppState<R>>) -> Router {
@@ -62,7 +65,15 @@ async fn create_user<R: UserRepository + 'static>(
     dto.validate()
         .map_err(|e| AppError::Validation(e.to_string()))?;
     let user = state.user_service.create(dto).await?;
-    Ok((StatusCode::CREATED, Json(UserResponse::from(user))))
+    let access_token = state
+        .token_service
+        .generate_token(user.id, &user.username)?;
+    let token = TokenResponse {
+        access_token,
+        token_type: "Bearer".to_string(),
+        expires_in: state.token_service.ttl_seconds,
+    };
+    Ok((StatusCode::CREATED, Json(token)))
 }
 
 async fn get_user_by_id<R: UserRepository + 'static>(
@@ -78,7 +89,7 @@ async fn delete_user_by_id<R: UserRepository + 'static>(
     Path(id): Path<Uuid>,
 ) -> Result<impl IntoResponse, AppError> {
     state.user_service.delete_by_id(id).await?;
-    Ok(StatusCode::NO_CONTENT)
+    Ok(StatusCode::OK)
 }
 
 async fn update_user<R: UserRepository + 'static>(

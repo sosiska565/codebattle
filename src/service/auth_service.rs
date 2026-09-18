@@ -1,6 +1,6 @@
 use crate::{
     error::AppError, models::dto::auth_dto::TokenResponse, models::dto::user_dto::UserLoginRequest,
-    service::jwt_service::Claims, service::jwt_service::TokenService,
+    service::token_service::Claims, service::token_service::TokenService,
 };
 use std::sync::Arc;
 
@@ -53,6 +53,6 @@ impl<R: UserRepository> AuthService<R> {
         })
     }
 
-    //pub async fn logout(&self, token: &str) -> Result<(), AppError> {}
+    //pub async fn logout(&self, token: &str) -> Result<(), AppError>
     //pub async fn refresh(&self, token: &str) -> Result<TokenPair, AppError> {}
 }
