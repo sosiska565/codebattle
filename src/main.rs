@@ -1,35 +1,43 @@
+mod error;
 mod models;
+mod repository;
+mod routes;
+mod service;
+use dotenvy::from_path;
 
-use axum::{
-    Router,
-    http::StatusCode,
-    response::{Html, IntoResponse},
-    routing::get,
-};
+use sqlx::PgPool;
+use std::{path::PathBuf, sync::Arc};
 
 #[tokio::main]
 async fn main() {
-    let app = Router::new().route("/", get(handler));
+    let mut env_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    env_path.push("codebattle-private");
+    env_path.push(".env");
 
-    let app = app.fallback(handler_404);
+    tracing_subscriber::fmt::init();
+
+    from_path(env_path).expect("Failed to load config/.env file");
+    let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+
+    let pool = PgPool::connect(&database_url)
+        .await
+        .expect("failed to connect to Postgres");
+
+    sqlx::migrate!("./migrations")
+        .run(&pool)
+        .await
+        .expect("failed to run migrations");
+
+    let repo = Arc::new(repository::user_repository::PgUserRepository::new(pool));
+    let user_service = service::user_service::UserService::new(repo);
+
+    let app_state = routes::routes::AppState { user_service };
+    let routes = routes::routes::create_route(Arc::new(app_state));
 
     let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
         .await
         .unwrap();
 
     println!("listening on {}", listener.local_addr().unwrap());
-    let _ = axum::serve(listener, app).await;
-}
-
-async fn handler() -> Html<&'static str> {
-    Html("<h1>hello world</h1>")
-}
-
-async fn handler_404() -> impl IntoResponse {
-    (
-        StatusCode::NOT_FOUND,
-        Html(
-            "<img src=\"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ36o0llmjMX_fETdo_9z27x20N85tVCFnd18Y3jl32iQ&s\">",
-        ),
-    )
+    let _ = axum::serve(listener, routes).await;
 }
