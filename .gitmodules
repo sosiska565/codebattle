@@ -1,0 +1,3 @@
+[submodule "codebattle-private"]
+	path = codebattle-private
+	url = https://github.com/sosiska565/codebattle-private
