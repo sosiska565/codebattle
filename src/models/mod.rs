@@ -1,2 +1,3 @@
-pub mod users;
 pub mod dto;
+pub mod user;
+pub mod users;
