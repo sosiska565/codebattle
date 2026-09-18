@@ -1,15 +1,10 @@
 use crate::{
     error::AppError, models::dto::auth_dto::TokenResponse, models::dto::user_dto::UserLoginRequest,
-    service::token_service::Claims, service::token_service::TokenService,
+    service::token_service::TokenService,
 };
 use std::sync::Arc;
 
-use axum::handler::Handler;
 use bcrypt::verify;
-use chrono::{Duration, Utc};
-use jsonwebtoken::{DecodingKey, EncodingKey, Header, Validation, decode, encode};
-use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 
 use crate::repository::user_repository::UserRepository;
 
