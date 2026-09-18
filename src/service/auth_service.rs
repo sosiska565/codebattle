@@ -1,5 +1,6 @@
 use crate::{
     error::AppError, models::dto::auth_dto::TokenResponse, models::dto::user_dto::UserLoginRequest,
+    service::jwt_service::Claims, service::jwt_service::TokenService,
 };
 use std::sync::Arc;
 
@@ -14,24 +15,16 @@ use crate::repository::user_repository::UserRepository;
 
 pub struct AuthService<R: UserRepository> {
     repo: Arc<R>,
-    jwt_secret: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Claims {
-    pub uid: uuid::Uuid,
-    pub username: String,
-    pub iat: u64,
-    pub exp: u64,
+    token_service: Arc<TokenService>,
 }
 
 const TOKEN_TIME: i64 = 60 * 60 * 24;
 
 impl<R: UserRepository> AuthService<R> {
-    pub fn new(repo: Arc<R>, jwt_secret: &str) -> Self {
+    pub fn new(repo: Arc<R>, token_service: Arc<TokenService>) -> Self {
         Self {
             repo,
-            jwt_secret: jwt_secret.to_string(),
+            token_service,
         }
     }
 
@@ -51,7 +44,7 @@ impl<R: UserRepository> AuthService<R> {
             return Err(AppError::Unauthorized("Wrong password".to_string()));
         }
 
-        let access_token = self.generate_token(user.id, &user.username)?;
+        let access_token = self.token_service.generate_token(user.id, &user.username)?;
 
         Ok(TokenResponse {
             access_token,
@@ -60,32 +53,6 @@ impl<R: UserRepository> AuthService<R> {
         })
     }
 
-    pub fn generate_token(&self, user_id: Uuid, username: &str) -> Result<String, AppError> {
-        let now = Utc::now();
-        let claims = Claims {
-            uid: user_id,
-            username: username.to_string(),
-            iat: now.timestamp() as u64,
-            exp: (now + Duration::seconds(TOKEN_TIME)).timestamp() as u64,
-        };
-
-        encode(
-            &Header::default(),
-            &claims,
-            &EncodingKey::from_secret(self.jwt_secret.as_bytes()),
-        )
-        .map_err(AppError::Jwt)
-    }
-
-    pub fn verify_token(&self, token: &str) -> Result<Claims, AppError> {
-        decode::<Claims>(
-            token,
-            &DecodingKey::from_secret(self.jwt_secret.as_bytes()),
-            &Validation::default(),
-        )
-        .map(|data| data.claims)
-        .map_err(AppError::Jwt)
-    }
     //pub async fn logout(&self, token: &str) -> Result<(), AppError> {}
     //pub async fn refresh(&self, token: &str) -> Result<TokenPair, AppError> {}
 }
