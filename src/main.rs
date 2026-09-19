@@ -5,6 +5,7 @@ mod routes;
 mod service;
 use dotenvy::from_path;
 
+use sea_orm::DatabaseConnection;
 use sqlx::PgPool;
 use std::{path::PathBuf, sync::Arc};
 
@@ -30,7 +31,8 @@ async fn main() {
         .await
         .expect("failed to run migrations");
 
-    let user_repo = Arc::new(repository::user_repository::PgUserRepository::new(pool));
+    let db = sea_orm::SqlxPostgresConnector::from_sqlx_postgres_pool(pool);
+    let user_repo = Arc::new(repository::user_repository::PgUserRepository::new(db));
     let user_service = service::user_service::UserService::new(user_repo.clone());
     let token_service =
         service::token_service::TokenService::new(&jwt_secret, jwt_ttl_seconds.parse().unwrap());

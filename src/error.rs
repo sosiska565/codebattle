@@ -3,6 +3,7 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
 };
+use sea_orm::DbErr;
 use serde_json::json;
 
 #[derive(thiserror::Error, Debug)]
@@ -12,7 +13,7 @@ pub enum AppError {
     #[error("conflict: {0}")]
     Conflict(String),
     #[error("database error")]
-    Db(#[from] sqlx::Error),
+    Db(#[from] DbErr),
     #[error("password hashing error")]
     Hash(#[from] bcrypt::BcryptError),
     #[error("internal error")]

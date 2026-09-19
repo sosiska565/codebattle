@@ -1,107 +1,91 @@
-use crate::models::users::User;
+use crate::models::users::{self, Entity as UserEntity, User};
 use async_trait::async_trait;
-use sqlx::PgPool;
+use sea_orm::{
+    ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, DbErr, EntityTrait,
+    PaginatorTrait, QueryFilter, dynamic::Column,
+};
 
 #[async_trait]
 pub trait UserRepository: Send + Sync {
-    async fn find_all(&self) -> Result<Vec<User>, sqlx::Error>;
-    async fn find_by_id(&self, id: &uuid::Uuid) -> Result<Option<User>, sqlx::Error>;
-    async fn find_by_email(&self, email: &str) -> Result<Option<User>, sqlx::Error>;
-    async fn exists_by_username(&self, email: &str) -> Result<bool, sqlx::Error>;
-    async fn exists_by_email(&self, email: &str) -> Result<bool, sqlx::Error>;
-    async fn create(&self, user: &User) -> Result<User, sqlx::Error>;
-    async fn update(&self, user: &User) -> Result<User, sqlx::Error>;
-    async fn delete_by_id(&self, id: &uuid::Uuid) -> Result<(), sqlx::Error>;
+    async fn find_all(&self) -> Result<Vec<User>, DbErr>;
+    async fn find_by_id(&self, id: &uuid::Uuid) -> Result<Option<User>, DbErr>;
+    async fn find_by_email(&self, email: &str) -> Result<Option<User>, DbErr>;
+    async fn exists_by_username(&self, email: &str) -> Result<bool, DbErr>;
+    async fn exists_by_email(&self, email: &str) -> Result<bool, DbErr>;
+    async fn create(&self, user: &User) -> Result<User, DbErr>;
+    async fn update(&self, user: &User) -> Result<User, DbErr>;
+    async fn delete_by_id(&self, id: &uuid::Uuid) -> Result<(), DbErr>;
 }
 
 pub struct PgUserRepository {
-    pool: PgPool,
+    db: DatabaseConnection,
 }
 
 impl PgUserRepository {
-    pub fn new(pool: PgPool) -> Self {
-        Self { pool }
+    pub fn new(db: DatabaseConnection) -> Self {
+        Self { db }
     }
 }
 
 #[async_trait]
 impl UserRepository for PgUserRepository {
-    async fn find_all(&self) -> Result<Vec<User>, sqlx::Error> {
-        sqlx::query_as::<_, User>(
-            "SELECT id, username, elo, email, pass_hash, created_at FROM users",
-        )
-        .fetch_all(&self.pool)
-        .await
+    async fn find_all(&self) -> Result<Vec<User>, DbErr> {
+        UserEntity::find().all(&self.db).await
     }
 
-    async fn find_by_id(&self, id: &uuid::Uuid) -> Result<Option<User>, sqlx::Error> {
-        sqlx::query_as::<_, User>("SELECT * FROM users WHERE id = $1")
-            .bind(id)
-            .fetch_optional(&self.pool)
+    async fn find_by_id(&self, id: &uuid::Uuid) -> Result<Option<User>, DbErr> {
+        UserEntity::find_by_id(*id).one(&self.db).await
+    }
+
+    async fn find_by_email(&self, email: &str) -> Result<Option<User>, DbErr> {
+        UserEntity::find()
+            .filter(users::Column::Email.eq(email))
+            .one(&self.db)
             .await
     }
 
-    async fn find_by_email(&self, email: &str) -> Result<Option<User>, sqlx::Error> {
-        sqlx::query_as::<_, User>("SELECT * FROM users WHERE email = $1")
-            .bind(email)
-            .fetch_optional(&self.pool)
-            .await
-    }
-
-    async fn exists_by_username(&self, username: &str) -> Result<bool, sqlx::Error> {
-        let exists: bool =
-            sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM users WHERE username = $1)")
-                .bind(username)
-                .fetch_one(&self.pool)
-                .await?;
-
-        Ok(exists)
-    }
-
-    async fn exists_by_email(&self, email: &str) -> Result<bool, sqlx::Error> {
-        let exists: bool =
-            sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM users WHERE email = $1)")
-                .bind(email)
-                .fetch_one(&self.pool)
-                .await?;
-
-        Ok(exists)
-    }
-
-    async fn create(&self, user: &User) -> Result<User, sqlx::Error> {
-        sqlx::query_as::<_, User>(
-            "INSERT INTO users (id, username, email, pass_hash, created_at, elo)
-            VALUES ($1, $2, $3, $4, $5, $6)
-            RETURNING id, username, email, pass_hash, created_at, elo",
-        )
-        .bind(&user.id)
-        .bind(&user.username)
-        .bind(&user.email)
-        .bind(&user.pass_hash)
-        .bind(&user.created_at)
-        .bind(&user.elo)
-        .fetch_one(&self.pool)
-        .await
-    }
-
-    async fn update(&self, user: &User) -> Result<User, sqlx::Error> {
-        sqlx::query_as::<_, User>(
-            "UPDATE users SET username = $1, email = $2 WHERE id = $3
-         RETURNING id, username, email, pass_hash, created_at, elo",
-        )
-        .bind(&user.username)
-        .bind(&user.email)
-        .bind(&user.id)
-        .fetch_one(&self.pool)
-        .await
-    }
-
-    async fn delete_by_id(&self, id: &uuid::Uuid) -> Result<(), sqlx::Error> {
-        sqlx::query("DELETE FROM users WHERE id = $1")
-            .bind(id)
-            .execute(&self.pool)
+    async fn exists_by_username(&self, username: &str) -> Result<bool, DbErr> {
+        let count = UserEntity::find()
+            .filter(users::Column::Username.eq(username))
+            .count(&self.db)
             .await?;
+        Ok(count > 0)
+    }
 
+    async fn exists_by_email(&self, email: &str) -> Result<bool, DbErr> {
+        let count = UserEntity::find()
+            .filter(users::Column::Email.eq(email))
+            .count(&self.db)
+            .await?;
+        Ok(count > 0)
+    }
+
+    async fn create(&self, user: &User) -> Result<User, DbErr> {
+        let active = users::ActiveModel {
+            id: Set(user.id),
+            username: Set(user.username.clone()),
+            email: Set(user.email.clone()),
+            pass_hash: Set(user.pass_hash.clone()),
+            elo: Set(user.elo),
+            created_at: Set(user.created_at),
+        };
+
+        active.insert(&self.db).await
+    }
+
+    async fn update(&self, user: &User) -> Result<User, DbErr> {
+        let active = users::ActiveModel {
+            id: Set(user.id),
+            username: Set(user.username.clone()),
+            email: Set(user.email.clone()),
+            ..Default::default()
+        };
+
+        active.update(&self.db).await
+    }
+
+    async fn delete_by_id(&self, id: &uuid::Uuid) -> Result<(), DbErr> {
+        UserEntity::delete_by_id(*id).exec(&self.db).await?;
         Ok(())
     }
 }
