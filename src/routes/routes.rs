@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use crate::error::AppError;
+use crate::models::battle_room::BattleManager;
 use crate::models::dto::auth_dto::TokenResponse;
 use crate::models::dto::user_dto::{
     UserCreateRequest, UserLoginRequest, UserResponse, UserUpdateRequest,
@@ -18,6 +19,7 @@ use axum::{
     response::IntoResponse,
     routing::get,
 };
+use tower_http::cors::{Any, CorsLayer};
 use uuid::Uuid;
 use validator::Validate;
 
@@ -25,9 +27,14 @@ pub struct AppState<R: UserRepository> {
     pub user_service: UserService<R>,
     pub auth_service: AuthService<R>,
     pub token_service: TokenService,
+    pub battle_redis_service: Arc<BattleManager>,
 }
 
 pub fn create_route<R: UserRepository + 'static>(state: Arc<AppState<R>>) -> Router {
+    let cors = CorsLayer::new()
+        .allow_origin(Any)
+        .allow_methods(Any)
+        .allow_headers(Any);
     Router::new()
         .route("/users", get(get_all_users).post(create_user))
         .route(
@@ -37,6 +44,7 @@ pub fn create_route<R: UserRepository + 'static>(state: Arc<AppState<R>>) -> Rou
                 .delete(delete_user_by_id),
         )
         .route("/auth/login", post(login))
+        .layer(cors)
         .with_state(state)
 }
 

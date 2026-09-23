@@ -4,10 +4,12 @@ mod repository;
 mod routes;
 mod service;
 use dotenvy::from_path;
+use redis::{self, TypedCommands};
+use tokio::sync::Mutex;
 
 use sea_orm::DatabaseConnection;
 use sqlx::PgPool;
-use std::{path::PathBuf, sync::Arc};
+use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
 #[tokio::main]
 async fn main() {
@@ -43,6 +45,7 @@ async fn main() {
         user_service,
         auth_service,
         token_service,
+        battle_redis_service: Arc::new(Mutex::new(HashMap::new())),
     };
     let routes = routes::routes::create_route(Arc::new(app_state));
 
