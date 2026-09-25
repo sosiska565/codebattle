@@ -35,3 +35,4 @@ validator = { version = "0.21.0", features = ["derive"] }
 tower-http = { version = "0.7.1", features = ["cors"] }
 redis = { version = "1.7.0", features = ["r2d2"] }
 r2d2 = "0.8.10"
+futures-util = "0.3"

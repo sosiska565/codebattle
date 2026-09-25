@@ -1,5 +1,4 @@
 use crate::error::AppError;
-use crate::models::dto::auth_dto::TokenResponse;
 use crate::models::dto::user_dto::{UserCreateRequest, UserUpdateRequest};
 use crate::models::users::User;
 use crate::repository::user_repository::UserRepository;
@@ -8,12 +7,12 @@ use chrono::Utc;
 use std::sync::Arc;
 use uuid::Uuid;
 
-pub struct UserService<R: UserRepository> {
-    repo: Arc<R>,
+pub struct UserService {
+    repo: Arc<dyn UserRepository + Send + Sync>,
 }
 
-impl<R: UserRepository> UserService<R> {
-    pub fn new(repo: Arc<R>) -> Self {
+impl UserService {
+    pub fn new(repo: Arc<dyn UserRepository + Send + Sync>) -> Self {
         Self { repo }
     }
 

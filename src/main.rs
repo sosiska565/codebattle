@@ -4,12 +4,11 @@ mod repository;
 mod routes;
 mod service;
 use dotenvy::from_path;
-use redis::{self, TypedCommands};
-use tokio::sync::Mutex;
 
-use sea_orm::DatabaseConnection;
 use sqlx::PgPool;
-use std::{collections::HashMap, path::PathBuf, sync::Arc};
+use std::{path::PathBuf, sync::Arc};
+
+use crate::service::battle_ws_service::BattleWsService;
 
 #[tokio::main]
 async fn main() {
@@ -35,17 +34,22 @@ async fn main() {
 
     let db = sea_orm::SqlxPostgresConnector::from_sqlx_postgres_pool(pool);
     let user_repo = Arc::new(repository::user_repository::PgUserRepository::new(db));
-    let user_service = service::user_service::UserService::new(user_repo.clone());
-    let token_service =
-        service::token_service::TokenService::new(&jwt_secret, jwt_ttl_seconds.parse().unwrap());
-    let auth_service =
-        service::auth_service::AuthService::new(user_repo, Arc::from(token_service.clone()));
+    let user_service = Arc::new(service::user_service::UserService::new(user_repo.clone()));
+    let token_service = Arc::new(service::token_service::TokenService::new(
+        &jwt_secret,
+        jwt_ttl_seconds.parse().unwrap(),
+    ));
+    let auth_service = Arc::new(service::auth_service::AuthService::new(
+        user_repo,
+        token_service.clone(),
+    ));
+    let battle_ws_service = Arc::new(BattleWsService::new());
 
     let app_state = routes::routes::AppState {
         user_service,
         auth_service,
         token_service,
-        battle_redis_service: Arc::new(Mutex::new(HashMap::new())),
+        battle_ws_service,
     };
     let routes = routes::routes::create_route(Arc::new(app_state));
 

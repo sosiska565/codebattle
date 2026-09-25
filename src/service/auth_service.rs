@@ -8,15 +8,18 @@ use bcrypt::verify;
 
 use crate::repository::user_repository::UserRepository;
 
-pub struct AuthService<R: UserRepository> {
-    repo: Arc<R>,
+pub struct AuthService {
+    repo: Arc<dyn UserRepository + Send + Sync>,
     token_service: Arc<TokenService>,
 }
 
 const TOKEN_TIME: i64 = 60 * 60 * 24;
 
-impl<R: UserRepository> AuthService<R> {
-    pub fn new(repo: Arc<R>, token_service: Arc<TokenService>) -> Self {
+impl AuthService {
+    pub fn new(
+        repo: Arc<dyn UserRepository + Send + Sync>,
+        token_service: Arc<TokenService>,
+    ) -> Self {
         Self {
             repo,
             token_service,

@@ -7,23 +7,15 @@ use crate::models::{
 };
 
 #[async_trait::async_trait]
-pub trait BattleRepository: Send + Sync {
-    async fn create(&self, battle: Battle) -> Result<Battle, DbErr>;
-}
+pub trait BattleRepository: Send + Sync {}
 
-struct PgBattleRepository {
-    pool: PgPool,
-}
+pub struct PgBattleRepository {}
 
 impl PgBattleRepository {
-    pub fn new(pool: PgPool) -> Self {
-        Self { pool }
+    pub fn new() -> Self {
+        Self {}
     }
 }
 
 #[async_trait::async_trait]
-impl BattleRepository for PgBattleRepository {
-    async fn create(&self, battle: Battle) -> Result<Battle, DbErr> {
-        todo!()
-    }
-}
+impl BattleRepository for PgBattleRepository {}
