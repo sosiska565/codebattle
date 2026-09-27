@@ -1,5 +1,6 @@
 use axum::{
     Json,
+    extract::{Multipart, multipart::MultipartError},
     http::StatusCode,
     response::{IntoResponse, Response},
 };
@@ -24,6 +25,10 @@ pub enum AppError {
     Unauthorized(String),
     #[error("jwt error")]
     Jwt(#[from] jsonwebtoken::errors::Error),
+    #[error("file error")]
+    File(#[from] MultipartError),
+    #[error("bad request")]
+    BadRequest(String),
 }
 
 impl IntoResponse for AppError {
@@ -33,7 +38,7 @@ impl IntoResponse for AppError {
         let (status, message) = match self {
             AppError::NotFound => (StatusCode::NOT_FOUND, self.to_string()),
             AppError::Conflict(_) => (StatusCode::CONFLICT, self.to_string()),
-            AppError::Db(_) | AppError::Hash(_) | AppError::Internal(_) => (
+            AppError::Db(_) | AppError::Hash(_) | AppError::File(_) | AppError::Internal(_) => (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "internal server error".to_string(),
             ),
@@ -43,6 +48,7 @@ impl IntoResponse for AppError {
                 StatusCode::UNAUTHORIZED,
                 "invalid or expired token".to_string(),
             ),
+            AppError::BadRequest(str) => (StatusCode::BAD_REQUEST, str),
         };
 
         (status, Json(json!({ "error": message }))).into_response()

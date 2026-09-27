@@ -7,10 +7,11 @@ use crate::models::dto::user_dto::{
 };
 use crate::models::users::User;
 use crate::service::auth_service::AuthService;
+use crate::service::battle_service::BattleService;
 use crate::service::battle_ws_service::BattleWsService;
 use crate::service::token_service::TokenService;
 use crate::service::user_service::UserService;
-use axum::extract::WebSocketUpgrade;
+use axum::extract::{Multipart, WebSocketUpgrade};
 use axum::http::StatusCode;
 use axum::routing::{any, post};
 use axum::{
@@ -19,6 +20,7 @@ use axum::{
     response::IntoResponse,
     routing::get,
 };
+use tokio::fs;
 use tower_http::cors::{Any, CorsLayer};
 use uuid::Uuid;
 use validator::Validate;
@@ -28,6 +30,7 @@ pub struct AppState {
     pub auth_service: Arc<AuthService>,
     pub token_service: Arc<TokenService>,
     pub battle_ws_service: Arc<BattleWsService>,
+    pub battle_service: Arc<BattleService>,
 }
 
 pub fn create_route(state: Arc<AppState>) -> Router {
@@ -44,7 +47,7 @@ pub fn create_route(state: Arc<AppState>) -> Router {
                 .delete(delete_user_by_id),
         )
         .route("/auth/login", post(login))
-        .route("/ws", any(ws_handler))
+        .route("/battle", any(ws_handler).post(upload_file))
         .layer(cors)
         .with_state(state)
 }
@@ -117,4 +120,11 @@ async fn ws_handler(
     Ok(ws.on_upgrade(move |socket| async move {
         state.battle_ws_service.echo(socket).await;
     }))
+}
+
+async fn upload_file(
+    State(state): State<Arc<AppState>>,
+    mut multipart: Multipart,
+) -> Result<impl IntoResponse, AppError> {
+    Ok(state.battle_service.upload_file(&mut multipart).await)
 }

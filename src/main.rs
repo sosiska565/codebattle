@@ -8,6 +8,7 @@ use dotenvy::from_path;
 use sqlx::PgPool;
 use std::{path::PathBuf, sync::Arc};
 
+use crate::service::battle_service::BattleService;
 use crate::service::battle_ws_service::BattleWsService;
 
 #[tokio::main]
@@ -44,12 +45,14 @@ async fn main() {
         token_service.clone(),
     ));
     let battle_ws_service = Arc::new(BattleWsService::new());
+    let battle_service = Arc::new(BattleService::new());
 
     let app_state = routes::routes::AppState {
         user_service,
         auth_service,
         token_service,
         battle_ws_service,
+        battle_service,
     };
     let routes = routes::routes::create_route(Arc::new(app_state));
 
