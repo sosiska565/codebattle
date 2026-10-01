@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use crate::error::AppError;
 use crate::models::dto::auth_dto::TokenResponse;
+use crate::models::dto::problem_dto::ProblemCreateRequest;
 use crate::models::dto::user_dto::{
     UserCreateRequest, UserLoginRequest, UserResponse, UserUpdateRequest,
 };
@@ -9,6 +10,7 @@ use crate::models::users::User;
 use crate::service::auth_service::AuthService;
 use crate::service::battle_service::BattleService;
 use crate::service::battle_ws_service::BattleWsService;
+use crate::service::problem_service::ProblemService;
 use crate::service::token_service::TokenService;
 use crate::service::user_service::UserService;
 use axum::extract::{Multipart, WebSocketUpgrade};
@@ -31,6 +33,7 @@ pub struct AppState {
     pub token_service: Arc<TokenService>,
     pub battle_ws_service: Arc<BattleWsService>,
     pub battle_service: Arc<BattleService>,
+    pub problem_service: Arc<ProblemService>,
 }
 
 pub fn create_route(state: Arc<AppState>) -> Router {
@@ -47,7 +50,8 @@ pub fn create_route(state: Arc<AppState>) -> Router {
                 .delete(delete_user_by_id),
         )
         .route("/auth/login", post(login))
-        .route("/battle", any(ws_handler).post(upload_file))
+        .route("/problems", post(generate_problem))
+        // .route("/battle", any(ws_handler).post(upload_file))
         .layer(cors)
         .with_state(state)
 }
@@ -122,9 +126,18 @@ async fn ws_handler(
     }))
 }
 
-async fn upload_file(
+async fn generate_problem(
     State(state): State<Arc<AppState>>,
-    mut multipart: Multipart,
+    Json(dto): Json<ProblemCreateRequest>,
 ) -> Result<impl IntoResponse, AppError> {
-    Ok(state.battle_service.upload_file(&mut multipart).await)
+    let problem = state.problem_service.generate_problem(dto).await?;
+
+    Ok(Json(problem))
 }
+
+// async fn upload_file(
+//     State(state): State<Arc<AppState>>,
+//     mut multipart: Multipart,
+// ) -> Result<impl IntoResponse, AppError> {
+//     Ok(state.battle_service.upload_file(&mut multipart).await)
+// }

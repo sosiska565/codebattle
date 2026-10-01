@@ -10,6 +10,7 @@ use std::{path::PathBuf, sync::Arc};
 
 use crate::service::battle_service::BattleService;
 use crate::service::battle_ws_service::BattleWsService;
+use crate::service::problem_service::ProblemService;
 
 #[tokio::main]
 async fn main() {
@@ -46,6 +47,7 @@ async fn main() {
     ));
     let battle_ws_service = Arc::new(BattleWsService::new());
     let battle_service = Arc::new(BattleService::new());
+    let problem_service = Arc::new(ProblemService::new());
 
     let app_state = routes::routes::AppState {
         user_service,
@@ -53,6 +55,7 @@ async fn main() {
         token_service,
         battle_ws_service,
         battle_service,
+        problem_service,
     };
     let routes = routes::routes::create_route(Arc::new(app_state));
 

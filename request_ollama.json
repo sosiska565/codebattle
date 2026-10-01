@@ -1,0 +1,48 @@
+{
+  "model": "qwen2.5:7b",
+  "stream": false,
+  "format": {
+    "type": "object",
+    "properties": {
+      "text": {
+        "type": "string"
+      },
+      "solution": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "args": {
+              "type": "array",
+              "items": {}
+            },
+            "output": {
+              "type": "array",
+              "items": {}
+            }
+          },
+          "required": [
+            "args",
+            "output"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    "required": [
+      "text",
+      "solution"
+    ],
+    "additionalProperties": false
+  },
+  "messages": [
+    {
+      "role": "system",
+      "content": "Ты генерируешь задачи по алгоритмам и структурам данных. Отвечай только валидным JSON без Markdown, без ```json, без пояснений и дополнительного текста. JSON должен содержать только поля text, solution. Сложность задачи будет от 1 до 10, где 1 самая легкая задача, а 10 самая трудная. Поле text должно содержать полное описание задачи, включая условие, ограничения и примеры, в данном поле ты обязан использовать Markdown разметку. Поле solution должно быть массивом тестовых случаев в тестовом случает обязательны два поля: args (аргументы функции), output (правильный вывод программы) ты обязан сгенерировать столько solution, чтобы обработать все выводы программы"
+    },
+    {
+      "role": "user",
+      "content": "Сгенерируй задачу уровня сложности "
+    }
+  ]
+}

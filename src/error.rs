@@ -29,6 +29,10 @@ pub enum AppError {
     File(#[from] MultipartError),
     #[error("bad request")]
     BadRequest(String),
+    #[error("parse json")]
+    ParseJson(#[from] serde_json::Error),
+    #[error("reqwest")]
+    Reqwest(#[from] reqwest::Error),
 }
 
 impl IntoResponse for AppError {
@@ -38,7 +42,12 @@ impl IntoResponse for AppError {
         let (status, message) = match self {
             AppError::NotFound => (StatusCode::NOT_FOUND, self.to_string()),
             AppError::Conflict(_) => (StatusCode::CONFLICT, self.to_string()),
-            AppError::Db(_) | AppError::Hash(_) | AppError::File(_) | AppError::Internal(_) => (
+            AppError::Db(_)
+            | AppError::Hash(_)
+            | AppError::File(_)
+            | AppError::Internal(_)
+            | AppError::ParseJson(_)
+            | AppError::Reqwest(_) => (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "internal server error".to_string(),
             ),

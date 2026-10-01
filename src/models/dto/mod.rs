@@ -1,3 +1,4 @@
 pub mod auth_dto;
 pub mod battle_dto;
+pub mod problem_dto;
 pub mod user_dto;
