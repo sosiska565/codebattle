@@ -1,6 +1,6 @@
 use axum::{
     Json,
-    extract::{Multipart, multipart::MultipartError},
+    extract::multipart::MultipartError,
     http::StatusCode,
     response::{IntoResponse, Response},
 };
@@ -33,6 +33,10 @@ pub enum AppError {
     ParseJson(#[from] serde_json::Error),
     #[error("reqwest")]
     Reqwest(#[from] reqwest::Error),
+    #[error("redis")]
+    Redis(#[from] redis::RedisError),
+    #[error("redis pool")]
+    Pool(#[from] r2d2::Error),
 }
 
 impl IntoResponse for AppError {
@@ -47,7 +51,9 @@ impl IntoResponse for AppError {
             | AppError::File(_)
             | AppError::Internal(_)
             | AppError::ParseJson(_)
-            | AppError::Reqwest(_) => (
+            | AppError::Reqwest(_)
+            | AppError::Redis(_)
+            | AppError::Pool(_) => (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "internal server error".to_string(),
             ),

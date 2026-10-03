@@ -2,7 +2,6 @@ use std::sync::Arc;
 
 use crate::error::AppError;
 use crate::models::dto::auth_dto::TokenResponse;
-use crate::models::dto::problem_dto::ProblemCreateRequest;
 use crate::models::dto::user_dto::{
     UserCreateRequest, UserLoginRequest, UserResponse, UserUpdateRequest,
 };
@@ -10,19 +9,19 @@ use crate::models::users::User;
 use crate::service::auth_service::AuthService;
 use crate::service::battle_service::BattleService;
 use crate::service::battle_ws_service::BattleWsService;
-use crate::service::problem_service::ProblemService;
+use crate::service::matchmaking_service::MatchmakingService;
 use crate::service::token_service::TokenService;
 use crate::service::user_service::UserService;
-use axum::extract::{Multipart, WebSocketUpgrade};
+use axum::extract::{Query, WebSocketUpgrade};
 use axum::http::StatusCode;
-use axum::routing::{any, post};
+use axum::routing::post;
 use axum::{
     Json, Router,
     extract::{Path, State},
     response::IntoResponse,
     routing::get,
 };
-use tokio::fs;
+use serde::Deserialize;
 use tower_http::cors::{Any, CorsLayer};
 use uuid::Uuid;
 use validator::Validate;
@@ -33,7 +32,12 @@ pub struct AppState {
     pub token_service: Arc<TokenService>,
     pub battle_ws_service: Arc<BattleWsService>,
     pub battle_service: Arc<BattleService>,
-    pub problem_service: Arc<ProblemService>,
+    pub matchmaking_service: Arc<MatchmakingService>,
+}
+
+#[derive(Deserialize)]
+struct WsAuthQuery {
+    token: String,
 }
 
 pub fn create_route(state: Arc<AppState>) -> Router {
@@ -49,8 +53,10 @@ pub fn create_route(state: Arc<AppState>) -> Router {
                 .patch(update_user)
                 .delete(delete_user_by_id),
         )
+        .route("/users/{id}/battles", get(get_user_battles))
         .route("/auth/login", post(login))
-        .route("/problems", post(generate_problem))
+        .route("/ws/matchmaking", get(matchmaking_ws))
+        .route("/ws/battle/{battle_id}", get(battle_ws))
         // .route("/battle", any(ws_handler).post(upload_file))
         .layer(cors)
         .with_state(state)
@@ -117,22 +123,45 @@ async fn update_user(
     Ok(Json(UserResponse::from(user)))
 }
 
-async fn ws_handler(
+async fn get_user_battles(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<Uuid>,
+) -> Result<impl IntoResponse, AppError> {
+    let history = state.battle_service.history(id).await?;
+    Ok(Json(history))
+}
+
+async fn authenticate_ws(state: &AppState, token: &str) -> Result<User, AppError> {
+    let claims = state.token_service.verify_token(token)?;
+    let id = Uuid::parse_str(&claims.sub)
+        .map_err(|_| AppError::Unauthorized("invalid token subject".to_string()))?;
+    state.user_service.get_by_id(id).await
+}
+
+async fn matchmaking_ws(
     ws: WebSocketUpgrade,
     State(state): State<Arc<AppState>>,
+    Query(q): Query<WsAuthQuery>,
 ) -> Result<impl IntoResponse, AppError> {
+    let user = authenticate_ws(&state, &q.token).await?;
     Ok(ws.on_upgrade(move |socket| async move {
-        state.battle_ws_service.echo(socket).await;
+        state.matchmaking_service.handle(socket, user).await;
     }))
 }
 
-async fn generate_problem(
+async fn battle_ws(
+    ws: WebSocketUpgrade,
     State(state): State<Arc<AppState>>,
-    Json(dto): Json<ProblemCreateRequest>,
+    Path(battle_id): Path<Uuid>,
+    Query(q): Query<WsAuthQuery>,
 ) -> Result<impl IntoResponse, AppError> {
-    let problem = state.problem_service.generate_problem(dto).await?;
-
-    Ok(Json(problem))
+    let user = authenticate_ws(&state, &q.token).await?;
+    Ok(ws.on_upgrade(move |socket| async move {
+        state
+            .battle_ws_service
+            .handle_battle(socket, battle_id, user.id)
+            .await;
+    }))
 }
 
 // async fn upload_file(

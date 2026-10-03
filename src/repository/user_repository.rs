@@ -2,7 +2,7 @@ use crate::models::users::{self, Entity as UserEntity, User};
 use async_trait::async_trait;
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, DbErr, EntityTrait,
-    PaginatorTrait, QueryFilter, dynamic::Column,
+    PaginatorTrait, QueryFilter,
 };
 
 #[async_trait]
@@ -14,6 +14,7 @@ pub trait UserRepository: Send + Sync {
     async fn exists_by_email(&self, email: &str) -> Result<bool, DbErr>;
     async fn create(&self, user: &User) -> Result<User, DbErr>;
     async fn update(&self, user: &User) -> Result<User, DbErr>;
+    async fn update_elo(&self, id: &uuid::Uuid, elo: i32) -> Result<(), DbErr>;
     async fn delete_by_id(&self, id: &uuid::Uuid) -> Result<(), DbErr>;
 }
 
@@ -82,6 +83,17 @@ impl UserRepository for PgUserRepository {
         };
 
         active.update(&self.db).await
+    }
+
+    async fn update_elo(&self, id: &uuid::Uuid, elo: i32) -> Result<(), DbErr> {
+        let active = users::ActiveModel {
+            id: Set(*id),
+            elo: Set(elo),
+            ..Default::default()
+        };
+
+        active.update(&self.db).await?;
+        Ok(())
     }
 
     async fn delete_by_id(&self, id: &uuid::Uuid) -> Result<(), DbErr> {

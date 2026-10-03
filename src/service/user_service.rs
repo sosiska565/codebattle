@@ -24,12 +24,12 @@ impl UserService {
         self.repo.find_by_id(&id).await?.ok_or(AppError::NotFound)
     }
 
-    pub async fn get_by_email(&self, email: String) -> Result<User, AppError> {
-        self.repo
-            .find_by_email(&email)
-            .await?
-            .ok_or(AppError::NotFound)
-    }
+    // pub async fn get_by_email(&self, email: String) -> Result<User, AppError> {
+    //     self.repo
+    //         .find_by_email(&email)
+    //         .await?
+    //         .ok_or(AppError::NotFound)
+    // }
 
     pub async fn create(&self, dto: UserCreateRequest) -> Result<User, AppError> {
         if self.repo.exists_by_username(&dto.username).await? {

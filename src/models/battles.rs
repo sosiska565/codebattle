@@ -14,11 +14,18 @@ use serde::{Deserialize, Serialize};
 #[sea_orm(table_name = "battles")]
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
-    id: uuid::Uuid,
-    start_at: DateTime<Utc>,
-    end_at: DateTime<Utc>,
-    score_user1: i32,
-    score_user2: i32,
+    pub id: uuid::Uuid,
+    pub user1_id: uuid::Uuid,
+    pub user2_id: uuid::Uuid,
+    pub level: i32,
+    pub task_text: Option<String>,
+    pub start_at: DateTime<Utc>,
+    pub end_at: Option<DateTime<Utc>>,
+    pub score_user1: i32,
+    pub score_user2: i32,
+    pub elo_delta_user1: i32,
+    pub elo_delta_user2: i32,
+    pub winner_id: Option<uuid::Uuid>,
 }
 
 #[derive(Clone, Copy, Debug, EnumIter)]
@@ -26,7 +33,7 @@ pub enum Relation {}
 
 impl RelationTrait for Relation {
     fn def(&self) -> RelationDef {
-        panic!("no relations defined for users")
+        panic!("no relations defined for battles")
     }
 }
 

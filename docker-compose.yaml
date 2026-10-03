@@ -1,8 +1,13 @@
-
 name: codebattle
 
+x-logging: &default-logging
+  logging:
+    driver: json-file
+    options:
+      max-size: 100M
+
 services:
-  db:
+  codebattle-db:
     image: postgres:16-alpine
     container_name: codebattle-db
     restart: always
@@ -14,6 +19,7 @@ services:
       - "127.0.0.1:5432:5432"
     volumes:
       - ./db-data:/var/lib/postgresql/data
+    <<: *default-logging
 
   ollama:
     image: ollama/ollama:latest
@@ -24,9 +30,37 @@ services:
     environment:
       OLLAMA_HOST: 0.0.0.0:11434
       OLLAMA_KEEP_ALIVE: 10m
+      OLLAMA_NUM_PARALLEL: 2
     volumes:
       - ollama_data:/root/.ollama
     gpus: all
+    <<: *default-logging
+
+  redis:
+    image: redis:7.2.4
+    container_name: codebattle-redis
+    command: [
+      "bash", "-c",
+      'docker-entrypoint.sh --appendonly no --requirepass "$$REDIS_PASSWORD"'
+    ]
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-codebattle}
+    ports:
+      - "127.0.0.1:6379:6379"
+    restart: always
+    <<: *default-logging
+
+  piston:
+    image: ghcr.io/engineer-man/piston:latest
+    container_name: codebattle-piston
+    restart: unless-stopped
+    privileged: true
+    ports:
+      - "127.0.0.1:2000:2000"
+    volumes:
+      - piston_packages:/piston/packages
+    <<: *default-logging
 
 volumes:
   ollama_data:
+  piston_packages:
