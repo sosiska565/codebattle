@@ -2,7 +2,7 @@ use crate::models::users::User;
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
-use validator::{Validate, ValidationError};
+use validator::Validate;
 
 #[derive(Default, Debug, Clone, FromRow, Deserialize, Serialize, Validate)]
 pub struct UserCreateRequest {

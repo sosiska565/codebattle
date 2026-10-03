@@ -1,3 +1,9 @@
 pub mod auth_service;
+pub mod battle_service;
+pub mod battle_ws_service;
+pub mod matchmaking_service;
+pub mod piston_service;
+pub mod problem_service;
+pub mod redis_service;
 pub mod token_service;
 pub mod user_service;

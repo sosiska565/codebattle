@@ -1,5 +1,4 @@
 use crate::error::AppError;
-use crate::models::dto::auth_dto::TokenResponse;
 use crate::models::dto::user_dto::{UserCreateRequest, UserUpdateRequest};
 use crate::models::users::User;
 use crate::repository::user_repository::UserRepository;
@@ -8,12 +7,12 @@ use chrono::Utc;
 use std::sync::Arc;
 use uuid::Uuid;
 
-pub struct UserService<R: UserRepository> {
-    repo: Arc<R>,
+pub struct UserService {
+    repo: Arc<dyn UserRepository + Send + Sync>,
 }
 
-impl<R: UserRepository> UserService<R> {
-    pub fn new(repo: Arc<R>) -> Self {
+impl UserService {
+    pub fn new(repo: Arc<dyn UserRepository + Send + Sync>) -> Self {
         Self { repo }
     }
 
@@ -25,12 +24,12 @@ impl<R: UserRepository> UserService<R> {
         self.repo.find_by_id(&id).await?.ok_or(AppError::NotFound)
     }
 
-    pub async fn get_by_email(&self, email: String) -> Result<User, AppError> {
-        self.repo
-            .find_by_email(&email)
-            .await?
-            .ok_or(AppError::NotFound)
-    }
+    // pub async fn get_by_email(&self, email: String) -> Result<User, AppError> {
+    //     self.repo
+    //         .find_by_email(&email)
+    //         .await?
+    //         .ok_or(AppError::NotFound)
+    // }
 
     pub async fn create(&self, dto: UserCreateRequest) -> Result<User, AppError> {
         if self.repo.exists_by_username(&dto.username).await? {

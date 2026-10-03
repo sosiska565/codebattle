@@ -1,0 +1,2 @@
+ALTER TABLE battles
+  ADD COLUMN winner_id UUID REFERENCES users(id) ON DELETE SET NULL;
